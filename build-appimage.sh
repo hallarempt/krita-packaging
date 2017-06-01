@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set -e
 
 log() {
@@ -23,7 +25,8 @@ export REPO_URL=${REPO_URL:-git://anongit.kde.org/krita}
 export VERSION
 export COMMIT
 
-export WORKSPACE=$(readlink -f workspace)
+WORKSPACE=$(readlink -f workspace)
+export WORKSPACE
 export APPDIR=$WORKSPACE/$APP.AppDir
 export DOWNLOADS=$WORKSPACE/downloads
 export BUILD=$WORKSPACE/build
@@ -35,7 +38,7 @@ log "VERSION: ${VERSION:-$notset} -- BRANCH: $BRANCH"
 
 
 log "preparing environment"
-mkdir -p $APPDIR $DOWNLOADS $BUILD $CHECKOUT $DEPS_BUILD
+mkdir -p "$APPDIR" "$DOWNLOADS" "$BUILD" "$CHECKOUT" "$DEPS_BUILD"
 
 # Newer compiler than what comes with CentOS 6
 . /opt/rh/devtoolset-3/enable
@@ -51,16 +54,16 @@ ln -sf /usr/share/pkgconfig /usr/lib/pkgconfig
 export LD_LIBRARY_PATH=/usr/lib64/:/usr/lib:$APPDIR/usr/lib:$APPDIR/usr/lib64
 
 
-cd $CHECKOUT
+cd "$CHECKOUT"
 log "cloning Krita repository"
 git clone   --depth 1 "$REPO_URL" -n .
 
-git checkout ${COMMIT:-$BRANCH}
+git checkout "${COMMIT:-$BRANCH}"
 
 if [ "$VERSION" == "" ]; then
-    VERSION="$(cat src/engine/version.h | grep VERSION_MAJOR | head -n1 | awk '{print $3}')"
-    VERSION="$VERSION.$(cat src/engine/version.h | grep VERSION_MINOR | head -n1 | awk '{print $3}')"
-    VERSION="$VERSION.$(cat src/engine/version.h | grep VERSION_PATCH | head -n1 | awk '{print $3}')"
+    VERSION="$(src/engine/version.h | grep VERSION_MAJOR | head -n1 | awk '{print $3}')"
+    VERSION="$VERSION.$(grep VERSION_MINOR src/engine/version.h | head -n1 | awk '{print $3}')"
+    VERSION="$VERSION.$(grep VERSION_PATCH src/engine/version.h | head -n1 | awk '{print $3}')"
 fi
 
 export VERSION
@@ -69,17 +72,17 @@ export VERSION
 COMMIT=${COMMIT:-$(git rev-parse HEAD)}
 
 # shorten commit if necessary
-COMMIT=$(git rev-parse --short $COMMIT)
+COMMIT=$(git rev-parse --short "$COMMIT")
 
 export COMMIT
 
 
 log "building dependencies from 3rdparty"
-cd $DEPS_BUILD
-cmake3 $CHECKOUT/3rdparty \
+cd "$DEPS_BUILD"
+cmake3 "${CHECKOUT}/3rdparty" \
     -DCMAKE_INSTALL_PREFIX:PATH=/usr \
     -DINSTALL_ROOT=/usr \
-    -DEXTERNALS_DOWNLOAD_DIR=$DOWNLOADS
+    -DEXTERNALS_DOWNLOAD_DIR="$DOWNLOADS"
 
 # ext_qt ext_png  
 for target in ext_openexr ext_boost ext_eigen3 ext_exiv2 ext_fftw3 ext_lcms2 ext_lcms2 \
@@ -91,8 +94,8 @@ done
 
 
 log "building Krita"
-cd $BUILD
-cmake3 $CHECKOUT \
+cd "$BUILD"
+cmake3 "$CHECKOUT" \
     -DCMAKE_INSTALL_PREFIX:PATH=/usr \
     -DDEFINE_NO_DEPRECATED=1 \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
@@ -102,7 +105,7 @@ cmake3 $CHECKOUT \
     -DPYQT_SIP_DIR_OVERRIDE=/usr/share/sip/\
     -DHAVE_MEMORY_LEAK_TRACKER=FALSE
     
-make DESTDIR=$APPDIR -j4 install
+make DESTDIR="$APPDIR" -j4 install
 
 log "modifying global variables for AppImage tools"
 export PATH=$APPDIR/usr/bin:$PATH
@@ -111,7 +114,7 @@ export XDG_DATA_DIRS=$APPDIR/usr/share:$XDG_DATA_DIRS
 export PKG_CONFIG_PATH=$APPDIR/usr/lib/pkgconfig:$PKG_CONFIG_PATH
 
 
-cd $APPDIR
+cd "$APPDIR"
 
 # Stuff that cannot be found by copy_deps
 # copy the Python 3 installation
@@ -134,10 +137,10 @@ do
     find usr/ -type f -iname "$file" -delete
 done
 
-cd $WORKSPACE
+cd "$WORKSPACE"
 log "generating appimage"
 
-[ ! -e $OLD_CWD/out ] && mkdir -p $OLD_CWD/out
+[ ! -e "${OLD_CWD}/out" ] && mkdir -p "${OLD_CWD}/out"
 
 # non-FUSE, simple replacement for generate_type2_appimage
 wget -c "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage" 
@@ -146,22 +149,22 @@ chmod a+x linuxdeployqt-continuous-x86_64.AppImage
 
 #GLIBC_NEEDED=$(glibc_needed)
 #APPIMAGE_FILENAME=${APP}-${VERSION}-${BRANCH}-${COMMIT}-${ARCH}.glibc$GLIBC_NEEDED.AppImage
-APPIMAGE_FILENAME=${APP}-${VERSION}-${BRANCH}-${COMMIT}-${ARCH}.AppImage
-APPIMAGE_PATH=$OLD_CWD/out/$APPIMAGE_FILENAME
+APPIMAGE_FILENAME="${APP}-${VERSION}-${BRANCH}-${COMMIT}-${ARCH}.AppImage"
+APPIMAGE_PATH="${OLD_CWD}/out/${APPIMAGE_FILENAME}"
 
 URL="zsync|https://download.kde.org/krita/unstable/appimage/krita-${BRANCH}-x86_64.AppImage.zsync"
 
 # FIXME: Might need to run twice; see https://github.com/probonopd/linuxdeployqt/issues/25
-for i in $(seq 1 2) 
+for _ in $(seq 1 2)
 do
-    squashfs-root/AppRun $APPDIR/usr/share/applications/org.kde.krita.desktop -bundle-non-qt-libs -verbose=2
+    squashfs-root/AppRun "${APPDIR}/usr/share/applications/org.kde.krita.desktop" -bundle-non-qt-libs -verbose=2
 done
 
 # TODO: -s for signing, needs a GPG2 key installed
-squashfs-root/AppRun/usr/bin/appimagetool $APPDIR -u "$URL"
+squashfs-root/AppRun/usr/bin/appimagetool "$APPDIR" -u "$URL"
 
 rm -r squashfs-root
 
 
 log "fixing AppImage permissions"
-chown $SUDO_UID:$SUDO_GID $OLD_CWD/out/*.AppImage
+chown "$SUDO_UID":"$SUDO_GID" "${OLD_CWD}/out/*.AppImage"
