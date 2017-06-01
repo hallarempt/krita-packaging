@@ -19,7 +19,7 @@ cleanup() {
         log "cleaning up..."
     fi
 
-    docker ps -a | grep -q $containerid && docker rm -f $containerid
+    docker ps -a | grep -q "$containerid" && docker rm -f "$containerid"
 }
 
 trap "cleanup SIGINT" SIGINT
@@ -29,7 +29,7 @@ trap "cleanup" EXIT
 
 log  "Building in a container..."
 
-randstr=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 8 | head -n 1)
+randstr=$(tr -dc 'a-z0-9' < /dev/urandom | fold -w 8 | head -n 1)
 containerid=krita-appimage-build-$randstr
 imageid="krita-appimage-build"
 
@@ -42,7 +42,7 @@ log "Creating container $containerid"
 mkdir -p workspace/ out/
 set -xe
 docker run -it \
-    --name $containerid \
+    --name "$containerid" \
     -v "$(readlink -f out/):/out" \
     -e VERSION -e BRANCH -e ARCH -e REPO_URL -e SUDO_UID -e SUDO_GID \
     $imageid \
