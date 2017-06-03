@@ -143,9 +143,12 @@ log "generating appimage"
 [ ! -e "${OLD_CWD}/out" ] && mkdir -p "${OLD_CWD}/out"
 
 # non-FUSE, simple replacement for generate_type2_appimage
-wget -c "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage" 
-chmod a+x linuxdeployqt-continuous-x86_64.AppImage
-./linuxdeployqt-continuous-x86_64.AppImage --appimage-extract
+#wget -c "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage" 
+#chmod a+x linuxdeployqt-continuous-x86_64.AppImage
+
+wget -c https://github.com/probonopd/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+chmod +x appimagetool-x86_64.AppImage
+./appimagetool-x86_64.AppImage --appimage-extract
 
 #GLIBC_NEEDED=$(glibc_needed)
 #APPIMAGE_FILENAME=${APP}-${VERSION}-${BRANCH}-${COMMIT}-${ARCH}.glibc$GLIBC_NEEDED.AppImage
@@ -157,14 +160,13 @@ URL="zsync|https://download.kde.org/krita/unstable/appimage/krita-${BRANCH}-x86_
 # FIXME: Might need to run twice; see https://github.com/probonopd/linuxdeployqt/issues/25
 for _ in $(seq 1 2)
 do
-    squashfs-root/AppRun "${APPDIR}/usr/share/applications/org.kde.krita.desktop" -bundle-non-qt-libs -verbose=2
+    squashfs-root/AppRun $APPDIR/usr/share/applications/org.kde.krita.desktop 
 done
 
 # TODO: -s for signing, needs a GPG2 key installed
 squashfs-root/AppRun/usr/bin/appimagetool "$APPDIR" -u "$URL"
 
 rm -r squashfs-root
-
 
 log "fixing AppImage permissions"
 chown "$SUDO_UID":"$SUDO_GID" "${OLD_CWD}/out/*.AppImage"
